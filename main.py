@@ -113,7 +113,7 @@ if __name__ == '__main__':
             opt, spatial_transform, temporal_transform, target_transform)
         val_loader = torch.utils.data.DataLoader(
             validation_data,
-            batch_size=opt.batch_size,
+            batch_size=opt.val_batch_size,
             shuffle=False,
             num_workers=opt.n_threads,
             pin_memory=True)
@@ -136,8 +136,8 @@ if __name__ == '__main__':
             train_epoch(i, train_loader, model, criterion, optimizer, opt,
                         train_logger, train_batch_logger)
         if not opt.no_val:
-            validation_loss = val_epoch(i, val_loader, model, criterion, opt,
-                                        val_logger)
+            validation_loss = val_epoch(i, val_loader, model, criterion,
+                                        optimizer, opt, val_logger)
 
         if not opt.no_train and not opt.no_val:
             scheduler.step(validation_loss)
@@ -155,7 +155,7 @@ if __name__ == '__main__':
                                  target_transform)
         test_loader = torch.utils.data.DataLoader(
             test_data,
-            batch_size=opt.batch_size,
+            batch_size=opt.val_batch_size,
             shuffle=False,
             num_workers=opt.n_threads,
             pin_memory=True)

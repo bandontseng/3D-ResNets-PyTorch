@@ -1,13 +1,18 @@
 import torch
 from torch.autograd import Variable
 import time
-import sys
-
+import os
 from utils import AverageMeter, calculate_accuracy
 
+# !UGLY code
+best_acc = 0
 
-def val_epoch(epoch, data_loader, model, criterion, opt, logger):
+
+def val_epoch(epoch, data_loader, model, criterion, optimizer, opt, logger):
     print('validation at epoch {}'.format(epoch))
+
+    # This gives me anxiety. Fix it later.
+    global best_acc
 
     model.eval()
 
@@ -21,6 +26,7 @@ def val_epoch(epoch, data_loader, model, criterion, opt, logger):
         data_time.update(time.time() - end_time)
 
         if not opt.no_cuda:
+            inputs = inputs.cuda()
             targets = targets.cuda(async=True)
         inputs = Variable(inputs, volatile=True)
         targets = Variable(targets, volatile=True)
@@ -46,6 +52,18 @@ def val_epoch(epoch, data_loader, model, criterion, opt, logger):
                   data_time=data_time,
                   loss=losses,
                   acc=accuracies))
+
+    if best_acc < accuracies.avg:
+        best_acc = accuracies.avg
+        best_file_path = os.path.join(opt.result_path,
+                                      'best.pth'.format(epoch))
+        states = {
+            'epoch': epoch + 1,
+            'arch': opt.arch,
+            'state_dict': model.state_dict(),
+            'optimizer': optimizer.state_dict(),
+        }
+        torch.save(states, best_file_path)
 
     logger.log({'epoch': epoch, 'loss': losses.avg, 'acc': accuracies.avg})
 
