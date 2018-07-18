@@ -1,12 +1,12 @@
 import torch
 from torch import nn
 
-from models import resnet, pre_act_resnet, wide_resnet, resnext, densenet
+from models import resnet, pre_act_resnet, wide_resnet, resnext, densenet, i3dpt, I3D_Pytorch
 
 
 def generate_model(opt):
     assert opt.model in [
-        'resnet', 'preresnet', 'wideresnet', 'resnext', 'densenet'
+        'resnet', 'preresnet', 'wideresnet', 'resnext', 'densenet', 'i3d', 'i3dv2'
     ]
 
     if opt.model == 'resnet':
@@ -160,6 +160,21 @@ def generate_model(opt):
                 num_classes=opt.n_classes,
                 sample_size=opt.sample_size,
                 sample_duration=opt.sample_duration)
+    elif opt.model == "i3d":
+
+        from models.i3dpt import get_fine_tuning_parameters
+
+        model = i3dpt.I3D(
+            num_classes=opt.n_classes,
+            dropout_prob=0.5)
+
+    elif opt.model == "i3dv2":
+
+        from models.I3D_Pytorch import get_fine_tuning_parameters
+
+        model = I3D_Pytorch.I3D(
+            num_classes=opt.n_classes,
+            dropout_keep_prob=0.5)
 
     if not opt.no_cuda:
         model = model.cuda()
@@ -168,9 +183,15 @@ def generate_model(opt):
         if opt.pretrain_path:
             print('loading pretrained model {}'.format(opt.pretrain_path))
             pretrain = torch.load(opt.pretrain_path)
-            assert opt.arch == pretrain['arch']
 
-            model.load_state_dict(pretrain['state_dict'])
+            if opt.model != "i3d" and opt.model != "i3dv2":
+                assert opt.arch == pretrain['arch']
+                model.load_state_dict(pretrain['state_dict'])
+            else:
+                pretrain = {"module." + k: v for k, v in pretrain.items()}
+                model_dict = model.state_dict()
+                model_dict.update(pretrain)
+                model.load_state_dict(model_dict)
 
             if opt.model == 'densenet':
                 model.module.classifier = nn.Linear(
@@ -196,7 +217,7 @@ def generate_model(opt):
                     model.classifier.in_features, opt.n_finetune_classes)
             else:
                 model.fc = nn.Linear(model.fc.in_features,
-                                            opt.n_finetune_classes)
+                                     opt.n_finetune_classes)
 
             parameters = get_fine_tuning_parameters(model, opt.ft_begin_index)
             return model, parameters
